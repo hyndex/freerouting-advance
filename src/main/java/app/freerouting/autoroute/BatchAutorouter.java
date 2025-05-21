@@ -19,6 +19,7 @@ import app.freerouting.rules.Net;
 import app.freerouting.settings.RouterSettings;
 
 import java.util.*;
+import java.util.concurrent.*;
 
 import static java.util.Collections.shuffle;
 
@@ -173,7 +174,6 @@ public class BatchAutorouter extends NamedAlgorithm
     {
       LinkedList<Item> autoroute_item_list = getAutorouteItems(this.board);
 
-      // If there are no items to route, we're done
       if (autoroute_item_list.isEmpty())
       {
         this.air_line = null;
@@ -265,6 +265,85 @@ public class BatchAutorouter extends NamedAlgorithm
   }
 
   /**
+   * Executes routing attempts in parallel and keeps the best resulting board.
+   */
+  private boolean autoroute_pass_parallel(int passNo, int instanceCount)
+  {
+    try
+    {
+      LinkedList<Item> autoroute_item_list = getAutorouteItems(this.board);
+
+      if (autoroute_item_list.isEmpty())
+      {
+        this.air_line = null;
+        return false;
+      }
+
+      boolean useSlowAlgorithm = passNo % 4 == 0;
+
+      ExecutorService executor = Executors.newFixedThreadPool(instanceCount);
+      List<Future<RoutingBoard>> results = new ArrayList<>();
+      BatchAutorouterThread[] autorouterThreads = new BatchAutorouterThread[instanceCount];
+      BoardHistory bh = new BoardHistory(job.routerSettings.scoring);
+
+      for (int i = 0; i < instanceCount; i++)
+      {
+        RoutingBoard clonedBoard = this.board.deepCopy();
+        List<Item> clonedAutorouteItemList = new ArrayList<>(getAutorouteItems(clonedBoard));
+        shuffle(clonedAutorouteItemList, new Random());
+
+        BatchAutorouterThread t = new BatchAutorouterThread(clonedBoard, clonedAutorouteItemList, passNo, useSlowAlgorithm, job.routerSettings, this.start_ripup_costs, this.trace_pull_tight_accuracy, this.remove_unconnected_vias, true);
+        autorouterThreads[i] = t;
+
+        if (i == 0)
+        {
+          t.addBoardUpdatedEventListener((event) ->
+          {
+            air_line = autorouterThreads[0].latest_air_line;
+            fireBoardUpdatedEvent(event.getBoardStatistics(), event.getRouterCounters(), event.getBoard());
+          });
+        }
+
+        results.add(executor.submit(() ->
+        {
+          t.run();
+          return t.getBoard();
+        }));
+      }
+
+      executor.shutdown();
+
+      for (int i = 0; i < results.size(); i++)
+      {
+        try
+        {
+          RoutingBoard b = results.get(i).get();
+          bh.add(b);
+
+          BoardStatistics stats = b.get_statistics();
+          float score = stats.getNormalizedScore(job.routerSettings.scoring);
+          job.logDebug("Router instance #" + (i + 1) + " finished with score: " + FRLogger.formatScore(score, stats.connections.incompleteCount, stats.clearanceViolations.totalCount));
+        } catch (InterruptedException | ExecutionException e)
+        {
+          job.logError("Autorouter instance was interrupted", e);
+          this.is_interrupted = true;
+        }
+      }
+
+      this.board = bh.restoreBestBoard();
+      bh.clear();
+
+      this.air_line = null;
+      return true;
+    } catch (Exception e)
+    {
+      job.logError("Something went wrong during the auto-routing", e);
+      this.air_line = null;
+      return false;
+    }
+  }
+
+  /**
    * Auto-routes one ripup pass of all items of the board. Returns false, if the board is already
    * completely routed.
    */
@@ -279,6 +358,11 @@ public class BatchAutorouter extends NamedAlgorithm
       {
         this.air_line = null;
         return false;
+      }
+      int parallelInstances = job.routerSettings.optimizer.parallelAutorouterInstances;
+      if (parallelInstances > 1)
+      {
+        return autoroute_pass_parallel(p_pass_no, parallelInstances);
       }
 
       int items_to_go_count = autoroute_item_list.size();
