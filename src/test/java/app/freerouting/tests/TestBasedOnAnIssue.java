@@ -97,7 +97,7 @@ public class TestBasedOnAnIssue
     long startTime = System.currentTimeMillis();
     long timeoutInMillis = 5 * 60 * 1000; // 5 minutes in milliseconds
 
-    while ((job.state != RoutingJobState.COMPLETED) && (job.state != RoutingJobState.CANCELLED) && (job.state != RoutingJobState.TERMINATED))
+    while ((job.state != RoutingJobState.COMPLETED) && (job.state != RoutingJobState.CANCELLED) && (job.state != RoutingJobState.TIMED_OUT) && (job.state != RoutingJobState.TERMINATED))
     {
       try
       {

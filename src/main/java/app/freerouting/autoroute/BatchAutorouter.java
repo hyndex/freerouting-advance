@@ -597,15 +597,21 @@ public class BatchAutorouter extends NamedAlgorithm
 
     bh.clear();
 
+    TaskState finalState;
     if (!this.is_interrupted)
     {
-      this.fireTaskStateChangedEvent(new TaskStateChangedEvent(this, TaskState.FINISHED, this.settings.get_start_pass_no(), this.board.get_hash()));
+      finalState = TaskState.FINISHED;
+    }
+    else if (job != null && job.state == RoutingJobState.TIMED_OUT)
+    {
+      finalState = TaskState.TIMED_OUT;
     }
     else
     {
-      // TODO: set it to TIMED_OUT if it was interrupted because of timeout
-      this.fireTaskStateChangedEvent(new TaskStateChangedEvent(this, TaskState.CANCELLED, this.settings.get_start_pass_no(), this.board.get_hash()));
+      finalState = TaskState.CANCELLED;
     }
+
+    this.fireTaskStateChangedEvent(new TaskStateChangedEvent(this, finalState, this.settings.get_start_pass_no(), this.board.get_hash()));
 
     return !this.is_interrupted;
   }
