@@ -1,7 +1,10 @@
 package app.freerouting.api;
 
+import app.freerouting.management.authentication.AuthenticationService;
+import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response;
 
 import java.util.UUID;
 
@@ -21,7 +24,11 @@ public class BaseController
 
     if (((userIdString == null) || (userIdString.isEmpty())) && ((userEmailString == null) || (userEmailString.isEmpty())))
     {
-      throw new IllegalArgumentException("Freerouting-Profile-ID or Freerouting-Profile-Email HTTP request header must be set in order to get authenticated.");
+      throw new WebApplicationException(
+          Response
+              .status(Response.Status.UNAUTHORIZED)
+              .entity("{\"error\":\"Freerouting-Profile-ID or Freerouting-Profile-Email HTTP request header must be set.\"}")
+              .build());
     }
 
     UUID userId = null;
@@ -38,17 +45,30 @@ public class BaseController
       }
     }
 
-    if ((userEmailString != null) && (!userEmailString.isEmpty()))
+    AuthenticationService authService = new AuthenticationService(app.freerouting.Freerouting.globalSettings.authServiceSettings.endpoint);
+
+    if ((userEmailString != null) && (!userEmailString.isEmpty()) && (userId == null))
     {
-      // TODO: get userId from e-mail address
+      userId = authService.resolveUserId(userEmailString);
     }
 
     if (userId == null)
     {
-      throw new IllegalArgumentException("The user couldn't be authenticated based on the Freerouting-Profile-ID or Freerouting-Profile-Email HTTP request header values.");
+      throw new WebApplicationException(
+          Response
+              .status(Response.Status.UNAUTHORIZED)
+              .entity("{\"error\":\"The user couldn't be authenticated based on the Freerouting-Profile-ID or Freerouting-Profile-Email HTTP request header values.\"}")
+              .build());
     }
 
-    // TODO: authenticate the user by calling the auth endpoint
+    if (!authService.validateUser(userId, userEmailString))
+    {
+      throw new WebApplicationException(
+          Response
+              .status(Response.Status.UNAUTHORIZED)
+              .entity("{\"error\":\"Authentication failed.\"}")
+              .build());
+    }
 
     return userId;
   }

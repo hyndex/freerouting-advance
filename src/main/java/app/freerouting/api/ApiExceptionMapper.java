@@ -16,6 +16,10 @@ public class ApiExceptionMapper implements ExceptionMapper<Throwable>
   @Produces(MediaType.APPLICATION_JSON)
   public Response toResponse(Throwable exception)
   {
+    if (exception instanceof jakarta.ws.rs.WebApplicationException wae)
+    {
+      return wae.getResponse();
+    }
     JsonObject errorMessage = new JsonObject();
     errorMessage.addProperty("error", exception.getMessage());
     errorMessage.addProperty("documentation", "https://github.com/freerouting/freerouting/blob/master/docs/API_v1.md");
