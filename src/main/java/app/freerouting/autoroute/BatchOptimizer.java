@@ -24,7 +24,6 @@ import java.util.TreeSet;
 public class BatchOptimizer extends NamedAlgorithm
 {
   protected static int MAX_AUTOROUTE_PASSES = 6;
-  protected static int ADDITIONAL_RIPUP_COST_FACTOR_AT_START = 10;
   protected ReadSortedRouteItems sorted_route_items;
   // in the first passes the ripup costs are increased for better performance.
   protected boolean use_increased_ripup_costs;
@@ -212,16 +211,14 @@ public class BatchOptimizer extends NamedAlgorithm
     int ripup_costs = this.settings.get_start_ripup_costs();
     if (this.use_increased_ripup_costs)
     {
-      // TODO: move this fixed parameter (ADDITIONAL_RIPUP_COST_FACTOR_AT_START=10) to the router optimizer settings
-      ripup_costs *= ADDITIONAL_RIPUP_COST_FACTOR_AT_START;
+      ripup_costs *= this.settings.optimizer.initialRipupCostFactor;
     }
 
     // reduce the ripup costs for traces
     if (p_item instanceof Trace)
     {
       // taking less ripup costs seems to produce better results
-      // TODO: move this fixed parameter (0.6) to the router optimizer settings
-      ripup_costs = (int) Math.round(0.6 * (double) ripup_costs);
+      ripup_costs = (int) Math.round(this.settings.optimizer.traceRipupReduction * (double) ripup_costs);
     }
 
     // route the connections
