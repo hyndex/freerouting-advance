@@ -15,6 +15,7 @@ import static app.freerouting.management.gson.GsonProvider.GSON;
 @Path("/v1/analytics")
 public class AnalyticsControllerV1
 {
+  private static BigQueryClient client;
   /**
    * Tracks an action performed by a user.
    *
@@ -45,11 +46,16 @@ public class AnalyticsControllerV1
 
     try
     {
-      // TODO: implement some caching mechanism, and insert the cached items in a batch
+      if (client == null)
+      {
+        client = new BigQueryClient(
+            Constants.FREEROUTING_VERSION,
+            globalSettings.usageAndDiagnosticData.bigqueryServiceAccountKey,
+            globalSettings.usageAndDiagnosticData.analyticsFlushInterval,
+            globalSettings.usageAndDiagnosticData.analyticsBatchSize);
+      }
 
-      // Send the payload to the BigQuery analytics service
-      var bigqueryClient = new BigQueryClient(Constants.FREEROUTING_VERSION, globalSettings.usageAndDiagnosticData.bigqueryServiceAccountKey);
-      bigqueryClient.track(trackPayload.userId, trackPayload.anonymousId, trackPayload.event, trackPayload.properties);
+      client.track(trackPayload.userId, trackPayload.anonymousId, trackPayload.event, trackPayload.properties);
     } catch (Exception e)
     {
       return Response

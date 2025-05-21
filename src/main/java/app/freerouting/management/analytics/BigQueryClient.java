@@ -3,6 +3,7 @@ package app.freerouting.management.analytics;
 import app.freerouting.logger.FRLogger;
 import app.freerouting.management.TextManager;
 import app.freerouting.management.analytics.dto.*;
+import java.util.concurrent.*;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.*;
@@ -27,14 +28,32 @@ public class BigQueryClient implements AnalyticsClient
   private final String LIBRARY_NAME = "freerouting";
   private final String LIBRARY_VERSION;
   private boolean enabled = true;
+  private final BlockingQueue<Payload> queue = new LinkedBlockingQueue<>();
+  private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
+    Thread t = new Thread(r);
+    t.setDaemon(true);
+    t.setName("bigquery-flush");
+    return t;
+  });
+  private final int batchSize;
+
+  private final int flushInterval;
 
   public BigQueryClient(String libraryVersion, String serviceAccountKey)
   {
+    this(libraryVersion, serviceAccountKey, 30, 20);
+  }
+
+  public BigQueryClient(String libraryVersion, String serviceAccountKey, int flushIntervalSeconds, int batchSize)
+  {
     BIGQUERY_SERVICE_ACCOUNT_KEY = serviceAccountKey.getBytes();
     LIBRARY_VERSION = libraryVersion;
+    this.flushInterval = flushIntervalSeconds;
+    this.batchSize = batchSize;
     // Enable TLS protocols
     System.setProperty("https.protocols", "TLSv1.2,TLSv1.3");
     bigQuery = createBigQueryClient();
+    scheduler.scheduleAtFixedRate(this::flushQueue, flushInterval, flushInterval, TimeUnit.SECONDS);
   }
 
   private BigQuery createBigQueryClient()
@@ -60,55 +79,75 @@ public class BigQueryClient implements AnalyticsClient
     }
   }
 
-  private void sendPayloadAsync(Payload payload)
+  private void enqueuePayload(Payload payload)
   {
     if (!enabled)
     {
       return;
     }
 
-    // generate the fields Map from the payload class
-    Map<String, String> fields = generateFieldsFromPayload(payload);
+    queue.offer(payload);
+    if (queue.size() >= batchSize)
+    {
+      scheduler.execute(this::flushQueue);
+    }
+  }
 
-    new Thread(() ->
+  private void flushQueue()
+  {
+    if (queue.isEmpty())
+    {
+      return;
+    }
+
+    var batch = new java.util.ArrayList<Payload>();
+    queue.drainTo(batch, batchSize);
+    Map<String, java.util.List<InsertAllRequest.RowToInsert>> tables = new HashMap<>();
+
+    for (Payload payload : batch)
     {
       try
       {
-        // table name is the event name with some formatting
+        Map<String, String> fields = generateFieldsFromPayload(payload);
         String tableName = payload.event
             .toLowerCase()
             .replace(" ", "_")
             .replace("-", "_");
 
-        // apply a text transformation to the event and event_text fields
         fields.put("event_text", fields.get("event"));
         fields.remove("event");
         fields.put("event", tableName);
 
+        tables.computeIfAbsent(tableName, k -> new java.util.ArrayList<>())
+            .add(InsertAllRequest.RowToInsert.of(fields));
+      } catch (Exception e)
+      {
+        FRLogger.error("Exception preparing analytics payload: " + e.getMessage(), e);
+      }
+    }
 
-        TableId tableId = TableId.of(BIGQUERY_PROJECT_ID, BIGQUERY_DATASET_ID, tableName);
-        InsertAllRequest.Builder builder = InsertAllRequest.newBuilder(tableId);
-
-        InsertAllRequest.RowToInsert row = InsertAllRequest.RowToInsert.of(fields);
-        builder.addRow(row);
+    for (var entry : tables.entrySet())
+    {
+      try
+      {
+        TableId tableId = TableId.of(BIGQUERY_PROJECT_ID, BIGQUERY_DATASET_ID, entry.getKey());
+        InsertAllRequest.Builder builder = InsertAllRequest.newBuilder(tableId)
+            .setRows(entry.getValue());
 
         InsertAllResponse response = bigQuery.insertAll(builder.build());
         if (response.hasErrors())
         {
-          // Handle errors
           response
               .getInsertErrors()
-              .forEach((index, errors) ->
-              {
-                // Log or handle the errors
-                FRLogger.error("Error in BigQueryClient.send_payload_async: (" + tableName + ")" + errors, null);
-              });
+              .forEach((index, errors) -> FRLogger.error(
+                  "Error in BigQueryClient.flushQueue: (" + entry.getKey() + ")" + errors,
+                  null));
         }
       } catch (Exception e)
       {
-        FRLogger.error("Exception in BigQueryClient.send_payload_async: " + e.getMessage(), e);
+        FRLogger.error("Exception in BigQueryClient.flushQueue: " + e.getMessage(), e);
       }
-    }).start();
+    }
   }
 
   private Map<String, String> generateFieldsFromPayload(Payload payload)
@@ -175,7 +214,7 @@ public class BigQueryClient implements AnalyticsClient
     payload.event = event;
     payload.properties = properties;
 
-    sendPayloadAsync(payload);
+    enqueuePayload(payload);
   }
 
   public void setEnabled(boolean enabled)
