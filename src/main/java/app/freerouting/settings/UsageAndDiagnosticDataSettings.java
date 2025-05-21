@@ -15,4 +15,8 @@ public class UsageAndDiagnosticDataSettings implements Serializable
   public transient String bigqueryServiceAccountKey = null;
   @SerializedName("logger_key")
   public transient String loggerKey = TextManager.generateRandomAlphanumericString(32);
+  @SerializedName("analytics_flush_interval")
+  public int analyticsFlushInterval = 30; // seconds
+  @SerializedName("analytics_batch_size")
+  public int analyticsBatchSize = 20;
 }

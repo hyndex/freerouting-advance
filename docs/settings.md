@@ -34,7 +34,9 @@ The primary way to configure Freerouting is through a JSON settings file. This f
   },
   "usage_and_diagnostic_data": {
     "disable_analytics": false,
-    "analytics_modulo": 16
+    "analytics_modulo": 16,
+    "analytics_flush_interval": 30,
+    "analytics_batch_size": 20
   },
   "feature_flags": {
     "logging": true,
@@ -96,6 +98,8 @@ The primary way to configure Freerouting is through a JSON settings file. This f
 
 - **`disable_analytics`**: Disables sending anonymous usage and diagnostic data.
 - **`analytics_modulo`**: Sends usage data after every Nth run, where N is the value of `analytics_modulo`.
+- **`analytics_flush_interval`**: Seconds between flushing queued analytics events to BigQuery.
+- **`analytics_batch_size`**: Number of events sent in each BigQuery batch.
 
 #### **`feature_flags` Section**
 
