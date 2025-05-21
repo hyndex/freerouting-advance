@@ -87,6 +87,11 @@ The primary way to configure Freerouting is through a JSON settings file. This f
 - **`start_ripup_costs`**: Cost factor for ripping up existing traces.
 - **`automatic_neckdown`**: Enables or disables automatic neckdown of traces.
 
+#### **`optimizer` Section**
+
+- **`initial_ripup_cost_factor`**: Multiplier applied to `start_ripup_costs` during the first optimization pass.
+- **`trace_ripup_reduction`**: Factor used to reduce rip-up costs when optimizing traces.
+
 #### **`usage_and_diagnostic_data` Section**
 
 - **`disable_analytics`**: Disables sending anonymous usage and diagnostic data.

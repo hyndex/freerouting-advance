@@ -152,6 +152,8 @@ public class RouterSettings implements Serializable
     result.maxPasses = this.maxPasses;
     result.optimizer.maxThreads = this.optimizer.maxThreads;
     result.optimizer.optimizationImprovementThreshold = this.optimizer.optimizationImprovementThreshold;
+    result.optimizer.initialRipupCostFactor = this.optimizer.initialRipupCostFactor;
+    result.optimizer.traceRipupReduction = this.optimizer.traceRipupReduction;
     result.optimizer.boardUpdateStrategy = this.optimizer.boardUpdateStrategy;
     result.optimizer.hybridRatio = this.optimizer.hybridRatio;
     result.optimizer.itemSelectionStrategy = this.optimizer.itemSelectionStrategy;
