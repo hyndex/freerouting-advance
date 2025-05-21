@@ -20,6 +20,8 @@ public class RouterOptimizerSettings implements Serializable
       .availableProcessors() - 1);
   @SerializedName("improvement_threshold")
   public float optimizationImprovementThreshold = 0.01f;
+  @SerializedName("parallel_router_instances")
+  public int parallelAutorouterInstances = 1;
   public transient BoardUpdateStrategy boardUpdateStrategy = BoardUpdateStrategy.GREEDY;
   public transient String hybridRatio = "1:1";
   public transient ItemSelectionStrategy itemSelectionStrategy = ItemSelectionStrategy.PRIORITIZED;
