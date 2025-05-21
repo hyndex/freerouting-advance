@@ -622,13 +622,37 @@ public class BoardFrame extends WindowBase
       return false;
     }
 
-    OutputStream output_stream;
     try
     {
       FRLogger.info("Saving '" + outputFile.getPath() + "'...");
 
-      output_stream = new FileOutputStream(outputFile);
-      saveAsBinary(output_stream);
+      byte[] dataBytes = null;
+
+      if ((this.routingJob != null) && (this.routingJob.output != null) && (this.routingJob.output.size > 0))
+      {
+        dataBytes = this.routingJob.output
+            .getData()
+            .readAllBytes();
+      }
+
+      if ((dataBytes == null) || (dataBytes.length == 0))
+      {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        saveAsBinary(baos);
+        dataBytes = baos.toByteArray();
+        baos.close();
+
+        if ((this.routingJob != null) && (this.routingJob.output != null))
+        {
+          this.routingJob.output.format = FileFormat.FRB;
+          this.routingJob.output.setData(dataBytes);
+        }
+      }
+
+      try (FileOutputStream fos = new FileOutputStream(outputFile))
+      {
+        fos.write(dataBytes);
+      }
     } catch (IOException e)
     {
       screen_messages.set_status_message(tm.getText("message_binary_file_save_failed", outputFile.getPath()));
@@ -639,15 +663,6 @@ public class BoardFrame extends WindowBase
       return false;
     }
 
-    // (4) Flush the binary file
-    try
-    {
-      output_stream.close();
-    } catch (IOException e)
-    {
-      screen_messages.set_status_message(tm.getText("message_binary_file_save_failed", outputFile.getPath()));
-      return false;
-    }
     return true;
   }
 
