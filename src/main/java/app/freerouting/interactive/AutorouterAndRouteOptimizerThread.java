@@ -18,6 +18,7 @@ import app.freerouting.tests.BoardValidator;
 
 import java.awt.*;
 import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -389,6 +390,19 @@ public class AutorouterAndRouteOptimizerThread extends InteractiveActionThread
       routingJob.finishedAt = Instant.now();
       routingJob.state = RoutingJobState.COMPLETED;
       globalSettings.statistics.incrementJobsCompleted();
+
+      if (routingJob.output.format == FileFormat.FRB)
+      {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos))
+        {
+          boardManager.saveAsBinary(oos);
+          routingJob.output.setData(baos.toByteArray());
+        } catch (Exception e)
+        {
+          routingJob.logError("Couldn't save the output into the job object.", e);
+        }
+      }
     }
 
     for (ThreadActionListener hl : this.listeners)

@@ -108,6 +108,22 @@ public class BoardFileDetails implements Serializable
     return new ByteArrayInputStream(this.dataBytes);
   }
 
+  /**
+   * Writes the binary data of this object to the specified file.
+   */
+  public void writeDataToFile(File outputFile) throws IOException
+  {
+    if (outputFile == null)
+    {
+      return;
+    }
+
+    try (FileOutputStream fos = new FileOutputStream(outputFile))
+    {
+      fos.write(this.dataBytes);
+    }
+  }
+
   public void setData(byte[] data)
   {
     this.dataBytes = data;
