@@ -326,6 +326,15 @@ public class FRAnalytics
     trackAnonymousAction(permanent_user_id, "Auto-router Finished", properties);
   }
 
+  public static void autorouterTimedOut()
+  {
+    Map<String, String> properties = new HashMap<>();
+    properties.put("settings", GsonProvider.GSON.toJson(globalSettings));
+    properties.put("session_count", String.valueOf(sessionCount));
+
+    trackAnonymousAction(permanent_user_id, "Auto-router Timed Out", properties);
+  }
+
   public static void routeOptimizerStarted()
   {
     routeOptimizerStartedAt = Instant

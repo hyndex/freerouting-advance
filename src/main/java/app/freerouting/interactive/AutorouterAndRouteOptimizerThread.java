@@ -380,7 +380,11 @@ public class AutorouterAndRouteOptimizerThread extends InteractiveActionThread
       routingJob.logError(e.getLocalizedMessage(), e);
     }
 
-    if (this.isStopRequested())
+    if (routingJob.state == RoutingJobState.TIMED_OUT)
+    {
+      routingJob.finishedAt = Instant.now();
+    }
+    else if (this.isStopRequested())
     {
       routingJob.finishedAt = Instant.now();
       routingJob.state = RoutingJobState.CANCELLED;
@@ -405,9 +409,18 @@ public class AutorouterAndRouteOptimizerThread extends InteractiveActionThread
       }
     }
 
+    if (routingJob.state == RoutingJobState.TIMED_OUT)
+    {
+      FRAnalytics.autorouterTimedOut();
+    }
+
     for (ThreadActionListener hl : this.listeners)
     {
-      if (this.isStopRequested())
+      if (routingJob.state == RoutingJobState.TIMED_OUT)
+      {
+        hl.autorouterTimedOut();
+      }
+      else if (this.isStopRequested())
       {
         hl.autorouterAborted();
       }

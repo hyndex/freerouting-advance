@@ -7,4 +7,8 @@ public interface ThreadActionListener
   void autorouterAborted();
 
   void autorouterFinished();
+
+  default void autorouterTimedOut()
+  {
+  }
 }
