@@ -372,6 +372,42 @@ public class RoutingJobScheduler
     }
   }
 
+  /**
+   * Cancel the job with the given id. If the job is currently running its
+   * thread will be requested to stop and the call waits until the thread has
+   * terminated.
+   *
+   * @param jobId The id of the job to cancel
+   * @return The cancelled job or {@code null} if no job was found
+   */
+  public RoutingJob cancelJob(String jobId)
+  {
+    RoutingJob job = getJob(jobId);
+    if (job == null)
+    {
+      return null;
+    }
+
+    // Signal the running thread to stop
+    if (job.thread != null && job.thread.isAlive())
+    {
+      job.thread.requestStop();
+      try
+      {
+        job.thread.join();
+      } catch (InterruptedException e)
+      {
+        FRLogger.error("Interrupted while waiting for job thread to stop", e);
+        Thread.currentThread().interrupt();
+      }
+    }
+
+    job.state = RoutingJobState.CANCELLED;
+    job.thread = null;
+
+    return job;
+  }
+
   public void clearJobs(String sessionId)
   {
     synchronized (jobs)
