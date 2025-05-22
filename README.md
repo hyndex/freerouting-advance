@@ -110,6 +110,24 @@ Installers are available for Windows x64, Linux x64, and macOS. For other system
 
 Freerouting Docker images for both stable releases (e.g., 2.1.0) and development (nightly) builds are available directly from [ghcr.io/freerouting/freerouting](https://ghcr.io/freerouting/freerouting).
 
+## Running Tests
+
+Freerouting uses Gradle for building and testing. Install **JDK&nbsp;21** and set the `JAVA_HOME` environment variable to its location. Optional settings can be provided through environment variables prefixed with `FREEROUTING__` (see [docs/settings.md](docs/settings.md)).
+
+Run all unit tests:
+
+```bash
+./gradlew test
+```
+
+Run integration tests:
+
+```bash
+./gradlew integrationTest
+```
+
+Our [GitHub Actions workflow](.github/workflows/gradle-build-on-pr.yml) executes the same tasks when validating pull requests.
+
 ## Contributing
 
 We ❤️ all our contributors; this project wouldn't be possible without you!
